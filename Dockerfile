@@ -13,7 +13,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # نسخ باقي ملفات المشروع إلى دليل العمل
 COPY . .
-
 # أمر البدء الافتراضي لتشغيل التطبيق باستخدام Gunicorn
-# يستخدم متغير البيئة PORT الذي يحدده Render
-CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:$PORT"]
+# يستخدم المنفذ 10000 مباشرة، وهو المنفذ الافتراضي الذي توفره Render
+CMD ["gunicorn", "app:app", "-b", "0.0.0.0:10000"]
