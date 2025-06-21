@@ -5,63 +5,42 @@
     <title>تقرير علامات الطلاب</title>
     <style>
         body {
-            font-family: 'Arial', sans-serif; /* استخدم خط شائع يدعم العربية */
-            direction: rtl; /* اتجاه النص من اليمين لليسار */
-            text-align: right; /* محاذاة النص لليمين */
-            margin: 40px; /* هوامش حول الصفحة */
-            color: #333; /* لون النص */
+            font-family: 'Arial', sans-serif;
+            direction: rtl;
+            text-align: right;
+            margin: 40px;
+            color: #333;
         }
         h1 {
             color: #0056b3;
             text-align: center;
             margin-bottom: 30px;
-            font-size: 2em; /* حجم العنوان */
-        }
-        h2 {
-            color: #0056b3;
-            text-align: center;
-            margin-top: 40px;
-            margin-bottom: 20px;
-            font-size: 1.5em;
         }
         table {
             width: 100%;
-            border-collapse: collapse; /* دمج حدود الجدول */
+            border-collapse: collapse;
             margin-top: 20px;
         }
         th, td {
-            border: 1px solid #ddd; /* حدود الخلايا */
+            border: 1px solid #ddd;
             padding: 10px;
             text-align: right;
-            font-size: 1.1em;
         }
         th {
             background-color: #f2f2f2;
             color: #0056b3;
             font-weight: bold;
         }
-        tbody tr:nth-child(even) { /* تلوين صفوف الجدول بالتناوب */
-            background-color: #f9f9f9;
-        }
         .no-grades {
             text-align: center;
             color: #777;
             margin-top: 20px;
-            font-style: italic;
         }
         .footer {
             margin-top: 50px;
             text-align: center;
             font-size: 0.9em;
             color: #666;
-            border-top: 1px solid #eee;
-            padding-top: 10px;
-        }
-        /* لضمان دعم أفضل للخطوط العربية في PDF */
-        @font-face {
-            font-family: 'Arial';
-            src: local('Arial');
-            unicode-range: U+0600-06FF, U+200C-200F, U+2010-2011, U+2212, U+FEFF, U+FB50-FDFF, U+FC50-FDFF, U+0000-00FF, U+0131, U+0152-0153, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2212, U+2215, U+E0FF, U+EFFD, U+F8FF, U+FEFF, U+FFFD;
         }
     </style>
 </head>
@@ -91,7 +70,7 @@
 
     <div class="footer">
         <p>إعداد المبرمج: قيس طلال الجازي</p>
-        <p>تاريخ الطباعة: {{ current_date }}</p>
+        <p>تاريخ الطباعة: {{ "الآن" }}</p> {# يمكنك إضافة التاريخ الفعلي هنا باستخدام مكتبة datetime في Python #}
     </div>
 </body>
 </html>
