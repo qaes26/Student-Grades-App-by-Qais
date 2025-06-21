@@ -5,66 +5,89 @@
     <title>تقرير علامات الطلاب والمعدل التراكمي</title>
     <style>
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: 'Arial', sans-serif; /* خط عام */
             direction: rtl;
             text-align: right;
             margin: 40px;
             color: #333;
+            line-height: 1.6;
         }
         h1 {
             color: #0056b3;
             text-align: center;
             margin-bottom: 30px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
         }
         .student-section {
             margin-bottom: 30px;
-            border: 1px solid #eee;
+            border: 1px solid #ddd;
             padding: 15px;
             border-radius: 8px;
-            background-color: #fcfcfc;
+            background-color: #f9f9f9; /* خلفية فاتحة لقسم الطالب */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* ظل خفيف */
         }
         .student-name {
-            font-size: 1.3em;
-            color: #0056b3;
+            font-size: 1.4em;
+            color: #007bff; /* لون أزرق مميز */
             margin-bottom: 10px;
+            font-weight: bold;
+            text-align: center;
+            border-bottom: 1px dashed #ccc; /* خط تحت اسم الطالب */
+            padding-bottom: 8px;
+        }
+        h3 {
+            color: #4CAF50; /* لون أخضر للمواد */
+            margin-top: 15px;
+            margin-bottom: 8px;
+            font-size: 1.1em;
             font-weight: bold;
         }
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
+            background-color: #fff;
         }
         th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
+            border: 1px solid #e0e0e0; /* حدود خفيفة للجدول */
+            padding: 10px;
             text-align: right;
         }
         th {
-            background-color: #f2f2f2;
+            background-color: #eaf6ff; /* خلفية رأس الجدول */
             color: #0056b3;
             font-weight: bold;
         }
         .student-gpa {
-            font-size: 1.1em;
-            color: #28a745;
+            font-size: 1.2em;
+            color: #28a745; /* أخضر للمعدل */
             font-weight: bold;
-            margin-top: 10px;
+            margin-top: 20px;
             text-align: center;
             background-color: #e6ffe6;
-            padding: 8px;
-            border-radius: 5px;
+            padding: 10px;
+            border-radius: 6px;
             border: 1px solid #c3e6cb;
         }
         .no-data {
             text-align: center;
             color: #777;
             margin-top: 20px;
+            font-style: italic;
         }
         .footer {
             margin-top: 50px;
             text-align: center;
-            font-size: 0.9em;
+            font-size: 0.85em;
             color: #666;
+            border-top: 1px dashed #ccc;
+            padding-top: 15px;
+        }
+        /* تحسينات للطباعة */
+        @page {
+            size: A4;
+            margin: 1.5cm;
         }
     </style>
 </head>
@@ -75,6 +98,7 @@
         {% for student_name, student_data in all_students_data.items() %}
             <div class="student-section">
                 <div class="student-name">الطالب: {{ student_name }}</div>
+                
                 <h3>المواد:</h3>
                 {% if student_data.subjects %}
                     <table>
@@ -94,8 +118,9 @@
                         </tbody>
                     </table>
                 {% else %}
-                    <p class="no-data">لا توجد مواد لهذا الطالب.</p>
+                    <p class="no-data">لا توجد مواد مدخلة لهذا الطالب.</p>
                 {% endif %}
+                
                 <div class="student-gpa">المعدل التراكمي: {{ student_data.gpa }}</div>
             </div>
         {% endfor %}
