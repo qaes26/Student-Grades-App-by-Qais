@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام علامات الطلاب</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+            box-sizing: border-box;
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #0056b3;
+            text-align: center;
+        }
+        p.programmer {
+            text-align: center;
+            font-size: 1.1em;
+            color: #555;
+            margin-bottom: 30px;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block;
+        }
+        input[type="text"], input[type="number"] {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .message {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+            text-align: center;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+            margin-top: 20px;
+        }
+        li {
+            background-color: #e9ecef;
+            margin-bottom: 10px;
+            padding: 10px 15px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.05em;
+        }
+        li span.name {
+            font-weight: bold;
+            color: #0056b3;
+        }
+        li span.grade {
+            background-color: #28a745;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>نظام علامات الطلاب</h1>
+        <p class="programmer">إعداد المبرمج: **{{ programmer_name }}**</p>
+
+        {% if message %}
+            <div class="message">{{ message }}</div>
+        {% endif %}
+
+        <h2>إضافة علامة جديدة</h2>
+        <form action="/add_grade" method="post">
+            <label for="student_name">اسم الطالب:</label>
+            <input type="text" id="student_name" name="student_name" required>
+
+            <label for="grade">العلامة:</label>
+            <input type="number" id="grade" name="grade" step="0.1" min="0" max="100" required>
+
+            <button type="submit">إضافة علامة</button>
+        </form>
+    </div>
+
+    <div class="container">
+        <h2>علامات الطلاب الحالية</h2>
+        {% if grades %}
+            <ul>
+                {% for name, grade in grades.items() %}
+                    <li>
+                        <span class="name">الطالب: {{ name }}</span>
+                        <span class="grade">العلامة: {{ grade }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p style="text-align: center; color: #777;">لا توجد علامات مدخلة بعد.</p>
+        {% endif %}
+    </div>
+</body>
+</html>
