@@ -1,5 +1,4 @@
 # استخدم صورة Python أساسية تحتوي على تبعيات WeasyPrint
-# هذه الصورة مبنية خصيصاً لتشمل Pango, Cairo, وغيرها
 FROM python:3.10-slim-buster
 
 # تعيين دليل العمل داخل الحاوية
@@ -16,5 +15,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # أمر البدء الافتراضي لتشغيل التطبيق باستخدام Gunicorn
-# هذا هو نفس الأمر الموجود في Procfile
-CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:10000"]
+# يستخدم متغير البيئة PORT الذي يحدده Render
+CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:$PORT"]
