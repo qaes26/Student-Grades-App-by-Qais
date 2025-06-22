@@ -1,19 +1,23 @@
 from flask import Flask, render_template, request, send_file, redirect, url_for
 from io import BytesIO
 from weasyprint import HTML, CSS
-import datetime
+import datetime # لإضافة التاريخ الحالي لتقرير PDF
 
 app = Flask(__name__)
 
+# قاموس لتخزين علامات الطلاب مع تفاصيل المواد
 students_grades = {} # بنية البيانات: {'الطالب': {'المادة': العلامة, ...}, ...}
 
+# دالة لحساب المعدل التراكمي للطالب
 def calculate_gpa(student_name):
     if student_name not in students_grades or not students_grades[student_name]:
         return "لا توجد مواد"
     
     total_grades = sum(students_grades[student_name].values())
     num_subjects = len(students_grades[student_name])
-    return round(total_grades / num_subjects, 2)
+    if num_subjects == 0: # تجنب القسمة على صفر إذا لم تكن هناك مواد
+        return "لا توجد مواد" # أو يمكنك إرجاع 0.0 إذا كنت تفضل رقماً
+    return round(total_grades / num_subjects, 2) # تقريب لرقمين عشريين
 
 # دالة مساعدة لتجهيز بيانات الطلاب مع المعدل لتمريرها للقوالب
 def get_students_data_for_template():
@@ -50,7 +54,6 @@ def add_grade():
             if student_name not in students_grades:
                 students_grades[student_name] = {}
             
-            # التحقق إذا كانت المادة موجودة لتغيير الرسالة
             if subject_name in students_grades[student_name]:
                 message = f"تم تحديث علامة الطالب {student_name} في مادة {subject_name} من {students_grades[student_name][subject_name]} إلى {grade} بنجاح!"
             else:
@@ -120,27 +123,101 @@ def edit_grade():
 
 @app.route('/export_grades_pdf')
 def export_grades_pdf():
+    """
+    مسار لتوليد ملف PDF لعلامات الطلاب والمعدل التراكمي.
+    """
     current_date = datetime.date.today().strftime("%Y-%m-%d")
+
     html_content = render_template('pdf_template.html', 
                                    all_students_data=get_students_data_for_template(), 
                                    current_date=current_date)
 
+    # Simplified CSS for PDF to reduce potential errors with WeasyPrint
     pdf_styles = CSS(string='''
-        body { font-family: 'Arial', sans-serif; direction: rtl; text-align: right; margin: 40px; font-size: 14px; color: #333; line-height: 1.6; }
-        h1 { color: #0056b3; text-align: center; margin-bottom: 30px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        .student-section { margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; border-radius: 8px; background-color: #f9f9f9; box-shadow: 0 2px 5px rgba(0,0,0,0.05); page-break-inside: avoid; }
-        .student-name { font-size: 1.4em; color: #007bff; margin-bottom: 10px; font-weight: bold; text-align: center; border-bottom: 1px dashed #ccc; padding-bottom: 8px; }
-        h3 { color: #4CAF50; margin-top: 15px; margin-bottom: 8px; font-size: 1.1em; font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; background-color: #fff; }
-        th, td { border: 1px solid #e0e0e0; padding: 10px; text-align: right; }
-        th { background-color: #eaf6ff; color: #0056b3; font-weight: bold; }
-        .student-gpa { font-size: 1.2em; color: #28a745; font-weight: bold; margin-top: 20px; text-align: center; background-color: #e6ffe6; padding: 10px; border-radius: 6px; border: 1px solid #c3e6cb; }
-        .no-data { text-align: center; color: #777; margin-top: 20px; font-style: italic; }
-        .footer { margin-top: 50px; text-align: center; font-size: 0.85em; color: #666; border-top: 1px dashed #ccc; padding-top: 15px; }
+        body { 
+            font-family: 'Arial', sans-serif; 
+            direction: rtl; 
+            text-align: right; 
+            margin: 30px; 
+            font-size: 12px; 
+            color: #333; 
+            line-height: 1.5; 
+        }
+        h1 { 
+            color: #0056b3; 
+            text-align: center; 
+            margin-bottom: 20px; 
+            padding-bottom: 5px; 
+            border-bottom: 1px solid #ccc; 
+        }
+        .student-section { 
+            margin-bottom: 25px; 
+            border: 1px solid #eee; 
+            padding: 15px; 
+            border-radius: 5px; 
+            background-color: #fcfcfc; 
+            page-break-inside: avoid; /* لمنع تقسيم قسم الطالب الواحد عبر الصفحات */
+        }
+        .student-name { 
+            font-size: 1.3em; 
+            color: #007bff; 
+            margin-bottom: 8px; 
+            font-weight: bold; 
+            text-align: center; 
+        }
+        h3 { 
+            color: #4CAF50; 
+            margin-top: 10px; 
+            margin-bottom: 5px; 
+            font-size: 1.0em; 
+            font-weight: bold; 
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 5px; 
+            background-color: #fff; 
+        }
+        th, td { 
+            border: 1px solid #ddd; 
+            padding: 8px; 
+            text-align: right; 
+        }
+        th { 
+            background-color: #eaf6ff; 
+            color: #0056b3; 
+            font-weight: bold; 
+        }
+        .student-gpa { 
+            font-size: 1.1em; 
+            color: #28a745; 
+            font-weight: bold; 
+            margin-top: 15px; 
+            text-align: center; 
+            background-color: #e6ffe6; 
+            padding: 8px; 
+            border-radius: 4px; 
+            border: 1px solid #c3e6cb; 
+        }
+        .no-data { 
+            text-align: center; 
+            color: #777; 
+            margin-top: 10px; 
+            font-style: italic; 
+        }
+        .footer { 
+            margin-top: 40px; 
+            text-align: center; 
+            font-size: 0.8em; 
+            color: #666; 
+            border-top: 1px dashed #ccc; 
+            padding-top: 10px; 
+        }
         @page { size: A4; margin: 1.5cm; }
     ''')
 
     pdf_file = BytesIO()
+    # base_url مهمة لـ WeasyPrint عشان يتعرف على المسارات النسبية (إن وجدت)
     HTML(string=html_content, base_url=request.url_root).write_pdf(pdf_file, stylesheets=[pdf_styles])
     pdf_file.seek(0)
 
