@@ -1,172 +1,146 @@
-from flask import Flask, render_template, request, send_file
+from flask import Flask, render_template, request, send_file, redirect, url_for
 from io import BytesIO
 from weasyprint import HTML, CSS
-import datetime # لإضافة التاريخ الحالي لتقرير PDF
+import datetime
 
 app = Flask(__name__)
 
-# قاموس لتخزين علامات الطلاب مع تفاصيل المواد
-# بنية جديدة: {'اسم الطالب': {'اسم المادة': العلامة, 'اسم المادة2': العلامة2, ...}, ...}
-students_grades = {}
+students_grades = {} # بنية البيانات: {'الطالب': {'المادة': العلامة, ...}, ...}
 
-# دالة لحساب المعدل التراكمي للطالب
 def calculate_gpa(student_name):
     if student_name not in students_grades or not students_grades[student_name]:
         return "لا توجد مواد"
     
     total_grades = sum(students_grades[student_name].values())
     num_subjects = len(students_grades[student_name])
-    return round(total_grades / num_subjects, 2) # تقريب لرقمين عشريين
+    return round(total_grades / num_subjects, 2)
 
-@app.route('/')
-def index():
-    """
-    الصفحة الرئيسية لعرض النموذج ونتائج العلامات.
-    """
-    programmer_name = "قيس طلال الجازي"
-    
-    # نحسب المعدل لكل طالب قبل تمريره للقالب
+# دالة مساعدة لتجهيز بيانات الطلاب مع المعدل لتمريرها للقوالب
+def get_students_data_for_template():
     students_with_gpa = {}
     for name, subjects in students_grades.items():
         students_with_gpa[name] = {
             'subjects': subjects,
             'gpa': calculate_gpa(name)
         }
+    return students_with_gpa
 
+@app.route('/')
+def index():
+    programmer_name = "قيس طلال الجازي"
     return render_template('index.html', 
                            programmer_name=programmer_name, 
-                           all_students_data=students_with_gpa) # تغيير اسم المتغير المرسل
+                           all_students_data=get_students_data_for_template())
 
 @app.route('/add_grade', methods=['POST'])
 def add_grade():
-    """
-    معالجة إضافة علامات الطلاب والمواد من النموذج.
-    """
-    student_name = request.form['student_name'].strip() # إزالة المسافات الزائدة
-    subject_name = request.form['subject_name'].strip() # حقل جديد لاسم المادة
+    student_name = request.form['student_name'].strip()
+    subject_name = request.form['subject_name'].strip()
     
     if not student_name or not subject_name:
         message = "الرجاء إدخال اسم الطالب واسم المادة."
-        programmer_name = "قيس طلال الجازي"
-        students_with_gpa = {}
-        for name, subjects in students_grades.items():
-            students_with_gpa[name] = {
-                'subjects': subjects,
-                'gpa': calculate_gpa(name)
-            }
         return render_template('index.html', 
-                               programmer_name=programmer_name, 
-                               all_students_data=students_with_gpa, 
+                               programmer_name="قيس طلال الجازي", 
+                               all_students_data=get_students_data_for_template(), 
                                message=message)
 
     try:
         grade = float(request.form['grade'])
         if 0 <= grade <= 100:
             if student_name not in students_grades:
-                students_grades[student_name] = {} # إذا الطالب جديد، أنشئ قاموس للمواد
-            students_grades[student_name][subject_name] = grade # إضافة المادة وعلامتها
-            message = f"تمت إضافة علامة {grade} للطالب {student_name} في مادة {subject_name} بنجاح!"
+                students_grades[student_name] = {}
+            
+            # التحقق إذا كانت المادة موجودة لتغيير الرسالة
+            if subject_name in students_grades[student_name]:
+                message = f"تم تحديث علامة الطالب {student_name} في مادة {subject_name} من {students_grades[student_name][subject_name]} إلى {grade} بنجاح!"
+            else:
+                message = f"تمت إضافة علامة {grade} للطالب {student_name} في مادة {subject_name} بنجاح!"
+
+            students_grades[student_name][subject_name] = grade
+            
         else:
             message = "الرجاء إدخال علامة بين 0 و 100."
     except ValueError:
         message = "إدخال غير صالح للعلامة. الرجاء إدخال رقم للعلامة."
     
-    programmer_name = "قيس طلال الجازي"
-    students_with_gpa = {}
-    for name, subjects in students_grades.items():
-        students_with_gpa[name] = {
-            'subjects': subjects,
-            'gpa': calculate_gpa(name)
-        }
     return render_template('index.html', 
-                           programmer_name=programmer_name, 
-                           all_students_data=students_with_gpa, 
+                           programmer_name="قيس طلال الجازي", 
+                           all_students_data=get_students_data_for_template(), 
+                           message=message)
+
+@app.route('/delete_grade/<student_name>/<subject_name>', methods=['POST'])
+def delete_grade(student_name, subject_name):
+    """
+    حذف علامة مادة محددة لطالب معين.
+    """
+    message = "حدث خطأ أثناء الحذف."
+    if student_name in students_grades:
+        if subject_name in students_grades[student_name]:
+            del students_grades[student_name][subject_name]
+            message = f"تم حذف علامة {subject_name} للطالب {student_name} بنجاح."
+            # إذا لم يعد للطالب أي مواد، احذف الطالب من القاموس
+            if not students_grades[student_name]:
+                del students_grades[student_name]
+        else:
+            message = f"المادة {subject_name} غير موجودة للطالب {student_name}."
+    else:
+        message = f"الطالب {student_name} غير موجود."
+    
+    return render_template('index.html', 
+                           programmer_name="قيس طلال الجازي", 
+                           all_students_data=get_students_data_for_template(), 
+                           message=message)
+
+@app.route('/edit_grade', methods=['POST'])
+def edit_grade():
+    """
+    معالجة تعديل علامة مادة محددة لطالب معين.
+    """
+    student_name = request.form['edit_student_name'].strip()
+    subject_name = request.form['edit_subject_name'].strip()
+    
+    message = "حدث خطأ أثناء التعديل."
+    if student_name in students_grades and subject_name in students_grades[student_name]:
+        try:
+            new_grade = float(request.form['new_grade'])
+            if 0 <= new_grade <= 100:
+                students_grades[student_name][subject_name] = new_grade
+                message = f"تم تعديل علامة {subject_name} للطالب {student_name} إلى {new_grade} بنجاح."
+            else:
+                message = "الرجاء إدخال علامة بين 0 و 100."
+        except ValueError:
+            message = "إدخال غير صالح للعلامة الجديدة. الرجاء إدخال رقم."
+    else:
+        message = "الطالب أو المادة غير موجودة للتعديل."
+    
+    return render_template('index.html', 
+                           programmer_name="قيس طلال الجازي", 
+                           all_students_data=get_students_data_for_template(), 
                            message=message)
 
 @app.route('/export_grades_pdf')
 def export_grades_pdf():
-    """
-    مسار لتوليد ملف PDF لعلامات الطلاب والمعدل التراكمي.
-    """
-    # نحسب المعدل لكل طالب قبل تمريره للقالب PDF
-    students_with_gpa = {}
-    for name, subjects in students_grades.items():
-        students_with_gpa[name] = {
-            'subjects': subjects,
-            'gpa': calculate_gpa(name)
-        }
-
-    # إضافة التاريخ الحالي لتقرير PDF
     current_date = datetime.date.today().strftime("%Y-%m-%d")
-
     html_content = render_template('pdf_template.html', 
-                                   all_students_data=students_with_gpa, # تمرير البيانات المحدثة
+                                   all_students_data=get_students_data_for_template(), 
                                    current_date=current_date)
 
     pdf_styles = CSS(string='''
-        body {
-            font-family: 'Arial', sans-serif;
-            direction: rtl;
-            text-align: right;
-            margin: 40px;
-            font-size: 14px;
-            color: #333;
-        }
-        h1 {
-            color: #0056b3;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 10px;
-            text-align: right;
-        }
-        th {
-            background-color: #f2f2f2;
-            color: #0056b3;
-            font-weight: bold;
-        }
-        .no-grades {
-            text-align: center;
-            color: #777;
-            margin-top: 20px;
-        }
-        .footer {
-            margin-top: 50px;
-            text-align: center;
-            font-size: 0.8em;
-            color: #666;
-        }
-        .student-section {
-            margin-bottom: 30px;
-            border: 1px solid #eee;
-            padding: 15px;
-            border-radius: 8px;
-            background-color: #fcfcfc;
-        }
-        .student-name {
-            font-size: 1.3em;
-            color: #0056b3;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-        .student-gpa {
-            font-size: 1.1em;
-            color: #28a745;
-            font-weight: bold;
-            margin-top: 10px;
-            text-align: center;
-        }
+        body { font-family: 'Arial', sans-serif; direction: rtl; text-align: right; margin: 40px; font-size: 14px; color: #333; line-height: 1.6; }
+        h1 { color: #0056b3; text-align: center; margin-bottom: 30px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .student-section { margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; border-radius: 8px; background-color: #f9f9f9; box-shadow: 0 2px 5px rgba(0,0,0,0.05); page-break-inside: avoid; }
+        .student-name { font-size: 1.4em; color: #007bff; margin-bottom: 10px; font-weight: bold; text-align: center; border-bottom: 1px dashed #ccc; padding-bottom: 8px; }
+        h3 { color: #4CAF50; margin-top: 15px; margin-bottom: 8px; font-size: 1.1em; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background-color: #fff; }
+        th, td { border: 1px solid #e0e0e0; padding: 10px; text-align: right; }
+        th { background-color: #eaf6ff; color: #0056b3; font-weight: bold; }
+        .student-gpa { font-size: 1.2em; color: #28a745; font-weight: bold; margin-top: 20px; text-align: center; background-color: #e6ffe6; padding: 10px; border-radius: 6px; border: 1px solid #c3e6cb; }
+        .no-data { text-align: center; color: #777; margin-top: 20px; font-style: italic; }
+        .footer { margin-top: 50px; text-align: center; font-size: 0.85em; color: #666; border-top: 1px dashed #ccc; padding-top: 15px; }
+        @page { size: A4; margin: 1.5cm; }
     ''')
 
     pdf_file = BytesIO()
-    # base_url مهمة لـ WeasyPrint عشان يتعرف على المسارات النسبية (إن وجدت)
     HTML(string=html_content, base_url=request.url_root).write_pdf(pdf_file, stylesheets=[pdf_styles])
     pdf_file.seek(0)
 
