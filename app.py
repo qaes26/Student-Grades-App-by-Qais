@@ -1,31 +1,37 @@
-from flask import Flask, render_template, request, send_file, redirect, url_for
+from flask import Flask, render_template, request, send_file, redirect, url_for, session
 from io import BytesIO
 from weasyprint import HTML, CSS
 import datetime # لإضافة التاريخ الحالي لتقرير PDF
+import os # لاستخدام توليد المفتاح السري
 
 app = Flask(__name__)
+# توليد مفتاح سري قوي. هذا المفتاح يستخدم لتشفير بيانات الجلسة.
+# في بيئة الإنتاج، يجب أن يكون هذا المفتاح في متغير بيئة (environment variable) وليس هنا مباشرة.
+app.secret_key = os.urandom(24) # يفضل استخدام مفتاح سري ثابت في الإنتاج، هذا للاختبار
 
-# قاموس لتخزين علامات الطلاب مع تفاصيل المواد
-students_grades = {} # بنية البيانات: {'الطالب': {'المادة': العلامة, ...}, ...}
+# ملاحظة: students_grades لم يعد متغيراً عاماً، سيتم تخزينه في الجلسة لكل مستخدم
 
 # دالة لحساب المعدل التراكمي للطالب
-def calculate_gpa(student_name):
-    if student_name not in students_grades or not students_grades[student_name]:
+def calculate_gpa(student_name, grades_data):
+    if student_name not in grades_data or not grades_data[student_name]:
         return "لا توجد مواد"
     
-    total_grades = sum(students_grades[student_name].values())
-    num_subjects = len(students_grades[student_name])
-    if num_subjects == 0: # تجنب القسمة على صفر إذا لم تكن هناك مواد
-        return "لا توجد مواد" # أو يمكنك إرجاع 0.0 إذا كنت تفضل رقماً
-    return round(total_grades / num_subjects, 2) # تقريب لرقمين عشريين
+    total_grades = sum(grades_data[student_name].values())
+    num_subjects = len(grades_data[student_name])
+    if num_subjects == 0:
+        return "لا توجد مواد"
+    return round(total_grades / num_subjects, 2)
 
 # دالة مساعدة لتجهيز بيانات الطلاب مع المعدل لتمريرها للقوالب
 def get_students_data_for_template():
+    # استرجاع بيانات العلامات من الجلسة، أو تهيئة قاموس فارغ إذا كانت الجلسة جديدة
+    user_grades = session.get('students_grades', {})
+    
     students_with_gpa = {}
-    for name, subjects in students_grades.items():
+    for name, subjects in user_grades.items():
         students_with_gpa[name] = {
             'subjects': subjects,
-            'gpa': calculate_gpa(name)
+            'gpa': calculate_gpa(name, user_grades) # نمرر user_grades للدالة
         }
     return students_with_gpa
 
@@ -41,8 +47,12 @@ def add_grade():
     student_name = request.form['student_name'].strip()
     subject_name = request.form['subject_name'].strip()
     
+    # الحصول على بيانات العلامات الخاصة بالمستخدم من الجلسة
+    user_grades = session.get('students_grades', {})
+    
     if not student_name or not subject_name:
         message = "الرجاء إدخال اسم الطالب واسم المادة."
+        session['students_grades'] = user_grades # حفظ التغييرات المحتملة
         return render_template('index.html', 
                                programmer_name="قيس طلال الجازي", 
                                all_students_data=get_students_data_for_template(), 
@@ -51,20 +61,23 @@ def add_grade():
     try:
         grade = float(request.form['grade'])
         if 0 <= grade <= 100:
-            if student_name not in students_grades:
-                students_grades[student_name] = {}
+            if student_name not in user_grades:
+                user_grades[student_name] = {}
             
-            if subject_name in students_grades[student_name]:
-                message = f"تم تحديث علامة الطالب {student_name} في مادة {subject_name} من {students_grades[student_name][subject_name]} إلى {grade} بنجاح!"
+            if subject_name in user_grades[student_name]:
+                message = f"تم تحديث علامة الطالب {student_name} في مادة {subject_name} من {user_grades[student_name][subject_name]} إلى {grade} بنجاح!"
             else:
                 message = f"تمت إضافة علامة {grade} للطالب {student_name} في مادة {subject_name} بنجاح!"
 
-            students_grades[student_name][subject_name] = grade
+            user_grades[student_name][subject_name] = grade
             
         else:
             message = "الرجاء إدخال علامة بين 0 و 100."
     except ValueError:
         message = "إدخال غير صالح للعلامة. الرجاء إدخال رقم للعلامة."
+    
+    # حفظ البيانات المحدثة في الجلسة بعد كل عملية إضافة
+    session['students_grades'] = user_grades
     
     return render_template('index.html', 
                            programmer_name="قيس طلال الجازي", 
@@ -73,21 +86,20 @@ def add_grade():
 
 @app.route('/delete_grade/<student_name>/<subject_name>', methods=['POST'])
 def delete_grade(student_name, subject_name):
-    """
-    حذف علامة مادة محددة لطالب معين.
-    """
+    user_grades = session.get('students_grades', {})
     message = "حدث خطأ أثناء الحذف."
-    if student_name in students_grades:
-        if subject_name in students_grades[student_name]:
-            del students_grades[student_name][subject_name]
+    if student_name in user_grades:
+        if subject_name in user_grades[student_name]:
+            del user_grades[student_name][subject_name]
             message = f"تم حذف علامة {subject_name} للطالب {student_name} بنجاح."
-            # إذا لم يعد للطالب أي مواد، احذف الطالب من القاموس
-            if not students_grades[student_name]:
-                del students_grades[student_name]
+            if not user_grades[student_name]:
+                del user_grades[student_name]
         else:
             message = f"المادة {subject_name} غير موجودة للطالب {student_name}."
     else:
         message = f"الطالب {student_name} غير موجود."
+    
+    session['students_grades'] = user_grades # حفظ التغييرات في الجلسة
     
     return render_template('index.html', 
                            programmer_name="قيس طلال الجازي", 
@@ -96,18 +108,16 @@ def delete_grade(student_name, subject_name):
 
 @app.route('/edit_grade', methods=['POST'])
 def edit_grade():
-    """
-    معالجة تعديل علامة مادة محددة لطالب معين.
-    """
+    user_grades = session.get('students_grades', {})
     student_name = request.form['edit_student_name'].strip()
     subject_name = request.form['edit_subject_name'].strip()
     
     message = "حدث خطأ أثناء التعديل."
-    if student_name in students_grades and subject_name in students_grades[student_name]:
+    if student_name in user_grades and subject_name in user_grades[student_name]:
         try:
             new_grade = float(request.form['new_grade'])
             if 0 <= new_grade <= 100:
-                students_grades[student_name][subject_name] = new_grade
+                user_grades[student_name][subject_name] = new_grade
                 message = f"تم تعديل علامة {subject_name} للطالب {student_name} إلى {new_grade} بنجاح."
             else:
                 message = "الرجاء إدخال علامة بين 0 و 100."
@@ -116,6 +126,8 @@ def edit_grade():
     else:
         message = "الطالب أو المادة غير موجودة للتعديل."
     
+    session['students_grades'] = user_grades # حفظ التغييرات في الجلسة
+    
     return render_template('index.html', 
                            programmer_name="قيس طلال الجازي", 
                            all_students_data=get_students_data_for_template(), 
@@ -123,16 +135,12 @@ def edit_grade():
 
 @app.route('/export_grades_pdf')
 def export_grades_pdf():
-    """
-    مسار لتوليد ملف PDF لعلامات الطلاب والمعدل التراكمي.
-    """
     current_date = datetime.date.today().strftime("%Y-%m-%d")
 
     html_content = render_template('pdf_template.html', 
                                    all_students_data=get_students_data_for_template(), 
                                    current_date=current_date)
 
-    # Simplified CSS for PDF to reduce potential errors with WeasyPrint
     pdf_styles = CSS(string='''
         body { 
             font-family: 'Arial', sans-serif; 
@@ -156,7 +164,7 @@ def export_grades_pdf():
             padding: 15px; 
             border-radius: 5px; 
             background-color: #fcfcfc; 
-            page-break-inside: avoid; /* لمنع تقسيم قسم الطالب الواحد عبر الصفحات */
+            page-break-inside: avoid;
         }
         .student-name { 
             font-size: 1.3em; 
@@ -217,7 +225,6 @@ def export_grades_pdf():
     ''')
 
     pdf_file = BytesIO()
-    # base_url مهمة لـ WeasyPrint عشان يتعرف على المسارات النسبية (إن وجدت)
     HTML(string=html_content, base_url=request.url_root).write_pdf(pdf_file, stylesheets=[pdf_styles])
     pdf_file.seek(0)
 
